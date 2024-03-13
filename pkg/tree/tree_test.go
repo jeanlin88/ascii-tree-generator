@@ -3,6 +3,8 @@ package tree
 import (
 	"fmt"
 	"testing"
+
+	"github.com/jeanlin88/ascii-tree-generator/tests"
 )
 
 func TestTree(t *testing.T) {
@@ -10,8 +12,8 @@ func TestTree(t *testing.T) {
 		structure := TreeNode{}
 		expect := ``
 		get, err := structure.toAsciiTree("")
-		NoError(t, err)
-		EqualString(t, expect, get)
+		tests.NoError(t, err)
+		tests.EqualString(t, expect, get)
 	})
 	t.Run("two-layer", func(t *testing.T) {
 		structure := TreeNode{
@@ -27,8 +29,8 @@ func TestTree(t *testing.T) {
 		expect := `project-root/
 └── file1`
 		get, err := structure.toAsciiTree("")
-		NoError(t, err)
-		EqualString(t, expect, get)
+		tests.NoError(t, err)
+		tests.EqualString(t, expect, get)
 	})
 	t.Run("three-layer", func(t *testing.T) {
 		structure := TreeNode{
@@ -50,8 +52,14 @@ func TestTree(t *testing.T) {
 					},
 				},
 				{
-					Type: FILE,
-					Name: "file2",
+					Type: DIRECTORY,
+					Name: "dir4",
+					Children: &[]TreeNode{
+						{
+							Type: FILE,
+							Name: "file2",
+						},
+					},
 				},
 			},
 		}
@@ -59,48 +67,17 @@ func TestTree(t *testing.T) {
 ├── file1
 ├── dir2/
 │   └── dir3/
-└── file2`
+└── dir4/
+    └── file2`
 		get, err := structure.toAsciiTree("")
-		NoError(t, err)
-		EqualString(t, expect, get)
+		tests.NoError(t, err)
+		tests.EqualString(t, expect, get)
 	})
 	t.Run("invalid-indent", func(t *testing.T) {
 		invalidIndent := "+-- "
 		structure := TreeNode{}
 		_, err := structure.toAsciiTree(invalidIndent)
-		Error(t, err)
-		EqualString(t, fmt.Sprintf("invalid indent %q", invalidIndent), err.Error())
+		tests.Error(t, err)
+		tests.EqualString(t, fmt.Sprintf("invalid indent %q", invalidIndent), err.Error())
 	})
-}
-
-func Error(t *testing.T, err error) {
-	t.Helper()
-	if err == nil {
-		t.Error("expect error get nil")
-		t.FailNow()
-	}
-}
-
-func NoError(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Errorf("got unexpected error %q", err.Error())
-		t.FailNow()
-	}
-}
-
-func EqualError(t *testing.T, expect, get error) {
-	t.Helper()
-	if expect != get {
-		t.Errorf("expect %q get %q", expect, get)
-		t.FailNow()
-	}
-}
-
-func EqualString(t *testing.T, expect, get string) {
-	t.Helper()
-	if expect != get {
-		t.Errorf("expect %q get %q", expect, get)
-		t.FailNow()
-	}
 }

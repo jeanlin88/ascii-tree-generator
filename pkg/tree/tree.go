@@ -32,7 +32,6 @@ func (t *TreeNode) generateName() string {
 }
 
 func (t *TreeNode) indentValid(indent string) bool {
-	fmt.Printf("indent: %q\n", indent)
 	re := regexp.MustCompile(INDENT_FORMAT)
 	return indent == "" || re.Match([]byte(indent))
 }
@@ -54,7 +53,7 @@ func (t *TreeNode) toAsciiTree(indent string) (string, error) {
 			indentSuffix := strings.Repeat(" ", (utf8.RuneCountInString(indent) - 1))
 			if strings.HasPrefix(indent, "├") {
 				indent = "│" + indentSuffix
-			} else if indent != "" {
+			} else {
 				indent = " " + indentSuffix
 			}
 		}
@@ -64,10 +63,7 @@ func (t *TreeNode) toAsciiTree(indent string) (string, error) {
 		} else {
 			subIndent += NON_LAST_INDENT
 		}
-		subAsciiTree, err := child.toAsciiTree(subIndent)
-		if err != nil {
-			return "", err
-		}
+		subAsciiTree, _ := child.toAsciiTree(subIndent)
 		result = append(result, subAsciiTree)
 	}
 	return strings.Join(result, "\n"), nil
