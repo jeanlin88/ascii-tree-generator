@@ -5,18 +5,23 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jeanlin88/ascii-tree-generator/pkg/cmdargs"
 	"github.com/jeanlin88/ascii-tree-generator/pkg/fileutils"
 )
 
 type TreeBuilder struct {
 	fileSystem fileutils.FileSystem
+	options    cmdargs.CommandLineOptions
 }
 
-func NewTreeBuilder(fs fileutils.FileSystem) *TreeBuilder {
-	return &TreeBuilder{fileSystem: fs}
+func NewTreeBuilder(fs fileutils.FileSystem, options cmdargs.CommandLineOptions) *TreeBuilder {
+	return &TreeBuilder{
+		fileSystem: fs,
+		options:    options,
+	}
 }
 
-func (tb *TreeBuilder) execute(path string) (TreeNode, error) {
+func (tb *TreeBuilder) Execute(path string) (TreeNode, error) {
 	root := TreeNode{}
 
 	rootDir, err := tb.fileSystem.Getwd()
@@ -49,7 +54,7 @@ func (tb *TreeBuilder) getSubTrees(path string) ([]TreeNode, error) {
 	subTrees := []TreeNode{}
 	for _, entry := range entries {
 		name := entry.Name()
-		if strings.HasPrefix(name, ".") {
+		if !tb.options.IncludeHidden && strings.HasPrefix(name, ".") {
 			log.Printf("ignore hidden file/directory: %s\n", name)
 			continue
 		}
@@ -60,7 +65,6 @@ func (tb *TreeBuilder) getSubTrees(path string) ([]TreeNode, error) {
 		}
 		if entry.IsDir() {
 			node.Type = DIRECTORY
-			log.Printf("get subtree in %s\n", filepath.Join(path, node.Name))
 			children, err := tb.getSubTrees(filepath.Join(path, node.Name))
 			if err != nil {
 				log.Println("getSubTrees failed")
@@ -68,7 +72,6 @@ func (tb *TreeBuilder) getSubTrees(path string) ([]TreeNode, error) {
 			}
 			node.Children = &children
 		}
-		log.Printf("node name: %s\n", node.Name)
 		subTrees = append(subTrees, node)
 	}
 	return subTrees, nil

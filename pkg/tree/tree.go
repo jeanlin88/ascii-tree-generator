@@ -2,9 +2,10 @@ package tree
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
-	"unicode/utf8"
+	//"unicode/utf8"
 )
 
 type TreeNodeType string
@@ -13,7 +14,7 @@ const (
 	DIRECTORY TreeNodeType = "directory"
 	FILE      TreeNodeType = "file"
 
-	INDENT_FORMAT   = `^(((│ {3}| {4})( {4})*)?(└── |├── ))?$`
+	INDENT_FORMAT   = `^((│ {3}| {4}))*((└── |├── ))?$`
 	LAST_INDENT     = "└── "
 	NON_LAST_INDENT = "├── "
 )
@@ -36,8 +37,9 @@ func (t *TreeNode) indentValid(indent string) bool {
 	return indent == "" || re.Match([]byte(indent))
 }
 
-func (t *TreeNode) toAsciiTree(indent string) (string, error) {
+func (t *TreeNode) ToAsciiTree(indent string) (string, error) {
 	if !t.indentValid(indent) {
+		log.Printf("indent invalid: %q", indent)
 		return "", fmt.Errorf("invalid indent %q", indent)
 	}
 
@@ -49,21 +51,15 @@ func (t *TreeNode) toAsciiTree(indent string) (string, error) {
 	result := []string{name}
 	lastIdx := len(*t.Children) - 1
 	for idx, child := range *t.Children {
-		if indent != "" {
-			indentSuffix := strings.Repeat(" ", (utf8.RuneCountInString(indent) - 1))
-			if strings.HasPrefix(indent, "├") {
-				indent = "│" + indentSuffix
-			} else {
-				indent = " " + indentSuffix
-			}
-		}
+		indent = strings.ReplaceAll(indent, NON_LAST_INDENT, "│   ")
+		indent = strings.ReplaceAll(indent, LAST_INDENT, "    ")
 		subIndent := indent
 		if idx == lastIdx {
 			subIndent += LAST_INDENT
 		} else {
 			subIndent += NON_LAST_INDENT
 		}
-		subAsciiTree, _ := child.toAsciiTree(subIndent)
+		subAsciiTree, _ := child.ToAsciiTree(subIndent)
 		result = append(result, subAsciiTree)
 	}
 	return strings.Join(result, "\n"), nil

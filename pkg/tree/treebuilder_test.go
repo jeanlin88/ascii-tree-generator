@@ -6,52 +6,78 @@ import (
 	"testing"
 
 	"github.com/jeanlin88/ascii-tree-generator/mocks/file"
+	"github.com/jeanlin88/ascii-tree-generator/pkg/cmdargs"
 	"github.com/jeanlin88/ascii-tree-generator/tests"
 )
 
+const (
+	rootName       = "project-root"
+	dir1Name       = "dir1"
+	file1Name      = "file1"
+	hiddenDirName  = ".dir"
+	hiddenFileName = ".file"
+)
+
 func TestTreeBuilder(t *testing.T) {
-	t.Run("mock file system", func(t *testing.T) {
-		file1Mock := mockfile.NewMockFileInfo("file1", false)
-		dir1Mock := mockfile.NewMockFileInfo("directory1", true)
-		fsMap := map[string][]fs.DirEntry{
-			".": {
-				fs.FileInfoToDirEntry(file1Mock),
-				fs.FileInfoToDirEntry(dir1Mock),
-			},
-			"directory1": {},
-		}
+	dir1Mock := mockfile.NewMockFileInfo(dir1Name, true)
+	file1Mock := mockfile.NewMockFileInfo(file1Name, false)
+	hiddenDirMock := mockfile.NewMockFileInfo(hiddenDirName, true)
+	hiddenFileMock := mockfile.NewMockFileInfo(hiddenFileName, false)
+	fsMap := map[string][]fs.DirEntry{
+		".": {
+			fs.FileInfoToDirEntry(hiddenDirMock),
+			fs.FileInfoToDirEntry(dir1Mock),
+			fs.FileInfoToDirEntry(file1Mock),
+		},
+		dir1Name: {},
+		hiddenDirName: {
+			fs.FileInfoToDirEntry(hiddenFileMock),
+		},
+	}
+
+	t.Run("default options", func(t *testing.T) {
 		fsMock := mockfile.NewMockFileSystem(fsMap, nil, nil)
-		builder := NewTreeBuilder(fsMock)
+		options := cmdargs.CommandLineOptions{
+			IncludeHidden:     false,
+			OutputFile:        cmdargs.ArgOutputFileUnset,
+			ReplaceOutputFile: false,
+		}
+		builder := NewTreeBuilder(fsMock, options)
 
 		expect := TreeNode{
 			Type: DIRECTORY,
-			Name: "project-root",
+			Name: rootName,
 			Children: &[]TreeNode{
-				{Type: FILE, Name: "file1"},
-				{Type: DIRECTORY, Name: "directory1", Children: &[]TreeNode{}},
+				{Type: DIRECTORY, Name: dir1Name, Children: &[]TreeNode{}},
+				{Type: FILE, Name: file1Name},
 			},
 		}
-		get, err := builder.execute(".")
+		get, err := builder.Execute(".")
 		tests.NoError(t, err)
 		EqualTreeNode(t, expect, get)
 	})
 
-	t.Run("ignore hidden file/directory", func(t *testing.T) {
-		hiddenFileMock := mockfile.NewMockFileInfo(".hidden", false)
-		fsMap := map[string][]fs.DirEntry{
-			".": {
-				fs.FileInfoToDirEntry(hiddenFileMock),
-			},
-		}
+	t.Run("include hidden", func(t *testing.T) {
 		fsMock := mockfile.NewMockFileSystem(fsMap, nil, nil)
-		builder := NewTreeBuilder(fsMock)
+		options := cmdargs.CommandLineOptions{
+			IncludeHidden:     true,
+			OutputFile:        cmdargs.ArgOutputFileUnset,
+			ReplaceOutputFile: false,
+		}
+		builder := NewTreeBuilder(fsMock, options)
 
 		expect := TreeNode{
-			Type:     DIRECTORY,
-			Name:     "project-root",
-			Children: &[]TreeNode{},
+			Type: DIRECTORY,
+			Name: rootName,
+			Children: &[]TreeNode{
+				{Type: DIRECTORY, Name: hiddenDirName, Children: &[]TreeNode{
+					{Type: FILE, Name: hiddenFileName},
+				}},
+				{Type: DIRECTORY, Name: dir1Name, Children: &[]TreeNode{}},
+				{Type: FILE, Name: file1Name},
+			},
 		}
-		get, err := builder.execute(".")
+		get, err := builder.Execute(".")
 		tests.NoError(t, err)
 		EqualTreeNode(t, expect, get)
 	})
@@ -59,23 +85,17 @@ func TestTreeBuilder(t *testing.T) {
 	t.Run("Getwd error", func(t *testing.T) {
 		getwdErr := errors.New("Getwd failed")
 		fsMock := mockfile.NewMockFileSystem(nil, getwdErr, nil)
-		builder := NewTreeBuilder(fsMock)
+		builder := NewTreeBuilder(fsMock, cmdargs.CommandLineOptions{})
 
-		_, err := builder.execute(".")
+		_, err := builder.Execute(".")
 		tests.EqualError(t, getwdErr, err)
 	})
 
 	t.Run("ReadDir error", func(t *testing.T) {
-		dir1Mock := mockfile.NewMockFileInfo("directory1", true)
-		fsMap := map[string][]fs.DirEntry{
-			".": {
-				fs.FileInfoToDirEntry(dir1Mock),
-			},
-		}
-		fsMock := mockfile.NewMockFileSystem(fsMap, nil, []string{"directory1"})
-		builder := NewTreeBuilder(fsMock)
+		fsMock := mockfile.NewMockFileSystem(fsMap, nil, []string{dir1Name})
+		builder := NewTreeBuilder(fsMock, cmdargs.CommandLineOptions{})
 
-		_, err := builder.execute(".")
+		_, err := builder.Execute(".")
 		tests.EqualError(t, mockfile.ErrReadDirFailed, err)
 	})
 }

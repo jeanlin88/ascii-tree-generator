@@ -2,15 +2,17 @@ package main
 
 import (
 	"flag"
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/jeanlin88/ascii-tree-generator/pkg/cmdargs"
 	"github.com/jeanlin88/ascii-tree-generator/pkg/fileutils"
+	"github.com/jeanlin88/ascii-tree-generator/pkg/tree"
 )
 
 func main() {
-	parser := cmdargs.NewCommandLineParser(&fileutils.OSFileSystem{})
+	fs := fileutils.OSFileSystem{}
+	parser := cmdargs.NewCommandLineParser(&fs)
 	options, err := parser.ParseOptions(
 		os.Args[1:],
 		flag.NewFlagSet("main", flag.ContinueOnError),
@@ -18,5 +20,17 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	log.Printf("options: %v", options)
+
+	builder := tree.NewTreeBuilder(&fs, options)
+	treeRoot, err := builder.Execute(".")
+	if err != nil {
+		os.Exit(1)
+	}
+
+	asciiTree, err := treeRoot.ToAsciiTree("")
+	if err != nil {
+		os.Exit(1)
+	}
+
+	fmt.Println(asciiTree)
 }
